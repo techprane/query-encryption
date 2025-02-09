@@ -1,17 +1,42 @@
-# Use official Python image as base
-FROM python:latest
+FROM python:3.9
 
-# Set the working directory
+#Comment
+
+# Install necessary tools
+RUN apt-get update && apt-get install -y wget
+
+# Download and extract the .tgz file into /usr/local/lib
+WORKDIR /tmp
+RUN wget https://downloads.mongodb.com/linux/mongo_crypt_shared_v1-linux-x86_64-enterprise-debian12-8.0.4.tgz
+
+RUN tar -zxvf mongo_crypt_shared_v1-linux-x86_64-enterprise-debian12-8.0.4.tgz
+
+RUN mv /tmp/lib/mongo_crypt_v1.so /usr/local/lib/
+# Update the library cache
+RUN ldconfig /usr/local/lib
+
+RUN rm -f mongo_crypt_shared_v1-linux-x86_64-enterprise-debian12-8.0.4.tgz
+
 WORKDIR /code
 
-# Copy the requirements file to the container
-COPY requirements.txt /code/requirements.txt
+COPY ./requirements.txt /code/requirements.txt
 
-# Install dependencies
 RUN pip install --no-cache-dir --upgrade -r /code/requirements.txt
 
-# Copy the application code to the container
-COPY . /code/app
+COPY ./app /code/app
 
-# Command to run the FastAPI app
-CMD ["uvicorn", "app.main:app", "--host=0.0.0.0", "--port", "8000"]
+#Download the mongosh
+#Install mongosh
+# Install dependencies, add MongoDB repository, and install mongosh
+RUN apt-get update && \
+    apt-get install -y gnupg curl && \
+    curl -fsSL https://pgp.mongodb.com/server-6.0.asc | \
+    gpg -o /usr/share/keyrings/mongodb-server-6.0.gpg --dearmor && \
+    echo "deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-6.0.gpg ] \
+    https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/6.0 multiverse" | \
+    tee /etc/apt/sources.list.d/mongodb-org-6.0.list && \
+    apt-get update && \
+    apt-get install -y mongodb-mongosh
+
+
+CMD ["fastapi", "run", "app/main.py", "--port", "8090"]
